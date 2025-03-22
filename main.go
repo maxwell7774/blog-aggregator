@@ -1,41 +1,54 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"os"
 
+	_ "github.com/lib/pq"
 	"github.com/maxwell7774/blog-aggregator/internal/config"
+	"github.com/maxwell7774/blog-aggregator/internal/database"
 )
 
 type state struct {
+    db *database.Queries
 	cfg *config.Config
 }
 
 func main() {
 	cfg, err := config.Read()
-	if err != nil { log.Fatalf("error reading config: %v", err)
+	if err != nil {
+		log.Fatalf("error reading config: %v", err)
 	}
 
-    programState := &state{
-        cfg: &cfg,
-    }
-
-    cmds := commands{
-        registeredCommands: make(map[string]func(*state, command) error),
-    }
-    cmds.register("login", handlerLogin)
-    
-    if len(os.Args) < 2 {
-        log.Fatal("Usage: cli <command> [args...]")
-        return
-    }
-    
-    var cmd command
-    cmd.Name = os.Args[1]
-    cmd.Args = os.Args[2:]
-
-    err = cmds.run(programState, cmd)
+    db, err := sql.Open("postgres", cfg.DatabaseURL);
     if err != nil {
-        log.Fatal(err)
+        log.Fatalf("error opening db connection: %v", err)
     }
+
+    dbQueries := database.New(db)
+
+	programState := &state{
+		cfg: &cfg,
+        db: dbQueries,
+	}
+
+	cmds := commands{
+		registeredCommands: make(map[string]func(*state, command) error),
+	}
+	cmds.register("login", handlerLogin)
+
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: cli <command> [args...]")
+		return
+	}
+
+	var cmd command
+	cmd.Name = os.Args[1]
+	cmd.Args = os.Args[2:]
+
+	err = cmds.run(programState, cmd)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
