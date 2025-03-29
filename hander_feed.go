@@ -36,3 +36,34 @@ func handlerAddFeed(s *state, cmd command) error {
 
 	return nil
 }
+
+func handlerListFeeds(s *state, cmd command) error {
+	if len(cmd.Args) > 0 {
+		return fmt.Errorf("usage: %s", cmd.Name)
+	}
+
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("couldn't retrieve feeds: %w", err)
+	}
+
+	for _, feed := range feeds {
+		user, err := s.db.GetUserById(context.Background(), feed.UserID)
+		if err != nil {
+			return fmt.Errorf("couldn't get user: %w", err)
+		}
+		printFeed(feed, user)
+		fmt.Println("=====================================")
+	}
+
+	return nil
+}
+
+func printFeed(f database.Feed, u database.User) {
+	fmt.Printf("* ID:            %s\n", f.ID)
+	fmt.Printf("* Created:       %v\n", f.CreatedAt)
+	fmt.Printf("* Updated:       %v\n", f.UpdatedAt)
+	fmt.Printf("* Name:          %s\n", f.Name)
+	fmt.Printf("* URL:           %s\n", f.Url)
+	fmt.Printf("* User:          %s\n", u.Name)
+}
