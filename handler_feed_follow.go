@@ -9,7 +9,7 @@ import (
 	"github.com/maxwell7774/blog-aggregator/internal/database"
 )
 
-func handlerFeedFollow(s *state, cmd command) error {
+func handlerFeedFollow(s *state, cmd command, user *database.User) error {
 	if len(cmd.Args) != 1 {
 		return fmt.Errorf("usage: %s <url>", cmd.Name)
 	}
@@ -18,11 +18,6 @@ func handlerFeedFollow(s *state, cmd command) error {
 	feed, err := s.db.GetFeed(context.Background(), URL)
 	if err != nil {
 		return fmt.Errorf("couldn't retrieve feed: %w", err)
-	}
-
-	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("couldn't retrieve current user: %w", err)
 	}
 
 	params := database.CreateFollowFeedParams{
@@ -43,14 +38,9 @@ func handlerFeedFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFeedFollowing(s *state, cmd command) error {
+func handlerFeedFollowing(s *state, cmd command, user *database.User) error {
 	if len(cmd.Args) != 0 {
 		return fmt.Errorf("usage: %s", cmd.Name)
-	}
-
-	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("couldn't retrieve current user: %w", err)
 	}
 
 	follows, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
@@ -61,5 +51,30 @@ func handlerFeedFollowing(s *state, cmd command) error {
 	for _, follow := range follows {
         fmt.Printf("* %s\n", follow.FeedName)
 	}
+    return nil
+}
+
+func handlerFeedUnfollow(s *state, cmd command, user *database.User) error {
+    if len(cmd.Args) != 1 {
+        return fmt.Errorf("usage: %s <url>", cmd.Name)
+    }
+    URL := cmd.Args[0]
+
+    feed, err := s.db.GetFeed(context.Background(), URL)
+    if err != nil {
+        return fmt.Errorf("couldn't retrieve feed: %w", err)
+    }
+
+    params := database.DeleteFollowFeedParams{
+        UserID: user.ID,
+        FeedID: feed.ID,
+    }
+    err = s.db.DeleteFollowFeed(context.Background(), params)
+    if err != nil {
+        return fmt.Errorf("couldn't unfollow feed: %w", err)
+    }
+
+    fmt.Printf("You have unfollowed %s", feed.Name)
+
     return nil
 }
